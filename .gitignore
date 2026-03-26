@@ -1,0 +1,6 @@
+# Binary
+koll
+dist/
+
+# OS
+.DS_Store
