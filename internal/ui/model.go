@@ -2,7 +2,9 @@ package ui
 
 import (
 	"fmt"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -15,11 +17,13 @@ import (
 )
 
 type scrollTickMsg struct{}
+type flashClearMsg struct{}
 
 type refreshMsg struct{}
 type diffLoadedMsg struct {
-	path  string
-	lines []types.DiffLine
+	path    string
+	lines   []types.DiffLine
+	diffErr string
 }
 type updateAvailableMsg struct {
 	version string
@@ -42,6 +46,8 @@ type Model struct {
 	updateAvailable string
 	version         string
 	firstLoad       bool
+	showHelp        bool
+	flashMsg        string
 }
 
 func NewModel(repoPath string, updateChan <-chan string, version string) Model {
@@ -70,12 +76,34 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		// Help overlay intercepts all keys
+		if m.showHelp {
+			m.showHelp = false
+			return m, nil
+		}
+
 		switch {
 		case key.Matches(msg, keys.Quit):
 			if m.watcher != nil {
 				m.watcher.Close()
 			}
 			return m, tea.Quit
+
+		case key.Matches(msg, keys.Help):
+			m.showHelp = true
+			return m, nil
+
+		case key.Matches(msg, keys.Yank):
+			visible := m.visibleFiles()
+			if m.cursor >= 0 && m.cursor < len(visible) {
+				path := visible[m.cursor].Path
+				copyToClipboard(path)
+				m.flashMsg = "copied: " + path
+				return m, tea.Tick(2*time.Second, func(t time.Time) tea.Msg {
+					return flashClearMsg{}
+				})
+			}
+			return m, nil
 
 		case key.Matches(msg, keys.ScrollUp):
 			return m, m.smoothScroll(-1)
@@ -244,10 +272,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.files[i].Path == msg.path {
 				m.files[i].DiffLines = msg.lines
 				m.files[i].DiffLoaded = true
+				m.files[i].DiffError = msg.diffErr
 				m.files[i].Additions, m.files[i].Deletions = countChanges(msg.lines)
 				break
 			}
 		}
+		return m, nil
+
+	case flashClearMsg:
+		m.flashMsg = ""
 		return m, nil
 
 	case watcherStartedMsg:
@@ -265,6 +298,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) View() string {
 	if m.width == 0 {
 		return "Loading..."
+	}
+
+	if m.showHelp {
+		return m.renderHelp()
 	}
 
 	var b strings.Builder
@@ -286,6 +323,16 @@ func (m Model) View() string {
 		// File line
 		fileLine := m.renderFileLine(f, isSelected)
 		lines = append(lines, fileLine)
+
+		// Loading indicator
+		if f.Expanded && !f.DiffLoaded && f.DiffError == "" {
+			lines = append(lines, diffIndent+loadingStyle.Render("loading..."))
+		}
+
+		// Error indicator
+		if f.Expanded && f.DiffError != "" {
+			lines = append(lines, diffIndent+errorStyle.Render("error: "+f.DiffError))
+		}
 
 		// Diff lines if expanded
 		if f.Expanded && f.DiffLoaded {
@@ -337,14 +384,18 @@ func (m Model) View() string {
 		filterStr = fmt.Sprintf(" [%s]", m.filter)
 	}
 
-
-	footer := footerStyle.Render(fmt.Sprintf(" %d files", len(visible))) +
-		filterStr +
-		footerStyle.Render(" · ") +
-		diffAdded.Render(fmt.Sprintf("+%d", totalAdd)) +
-		diffRemoved.Render(fmt.Sprintf(" -%d", totalDel)) +
-		footerStyle.Render("  q·quit a·all c·collapse s·filter")
-	b.WriteString(footer)
+	// Flash message or normal footer
+	if m.flashMsg != "" {
+		b.WriteString(flashStyle.Render(" " + m.flashMsg))
+	} else {
+		footer := footerStyle.Render(fmt.Sprintf(" %d files", len(visible))) +
+			filterStr +
+			footerStyle.Render(" · ") +
+			diffAdded.Render(fmt.Sprintf("+%d", totalAdd)) +
+			diffRemoved.Render(fmt.Sprintf(" -%d", totalDel)) +
+			footerStyle.Render("  ?·help")
+		b.WriteString(footer)
+	}
 
 	// Version / update line
 	b.WriteString("\n")
@@ -353,6 +404,38 @@ func (m Model) View() string {
 	} else {
 		b.WriteString(footerStyle.Render(fmt.Sprintf(" koll %s", m.version)))
 	}
+
+	return b.String()
+}
+
+func (m Model) renderHelp() string {
+	var b strings.Builder
+
+	title := headerStyle.Render("koll") + " " + headerDim.Render("keybindings")
+	b.WriteString(" " + title + "\n\n")
+
+	bindings := []struct{ key, desc string }{
+		{"j / k", "jump between files"},
+		{"↑ / ↓", "scroll line by line"},
+		{"enter / l", "toggle file diff"},
+		{"a", "expand all files"},
+		{"c", "collapse all files"},
+		{"s", "cycle filter: all → unstaged → staged"},
+		{"y", "copy file path to clipboard"},
+		{"ctrl+d / ctrl+u", "half page scroll"},
+		{"pgdn / pgup", "full page scroll"},
+		{"g / G", "jump to top / bottom"},
+		{"r", "force refresh"},
+		{"q / ctrl+c", "quit"},
+	}
+
+	for _, bind := range bindings {
+		line := "  " + helpKeyStyle.Render(fmt.Sprintf("%-18s", bind.key)) + helpStyle.Render(bind.desc)
+		b.WriteString(line + "\n")
+	}
+
+	b.WriteString("\n")
+	b.WriteString(helpDimStyle.Render("  press any key to close"))
 
 	return b.String()
 }
@@ -422,12 +505,21 @@ func (m Model) renderFileLine(f types.FileChange, isSelected bool) string {
 }
 
 func splitPath(path string) (string, string) {
-	for i := len(path) - 1; i >= 0; i-- {
-		if path[i] == '/' {
-			return path[:i+1], path[i+1:]
-		}
+	return filepath.Split(path)
+}
+
+func copyToClipboard(text string) {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("pbcopy")
+	case "linux":
+		cmd = exec.Command("xclip", "-selection", "clipboard")
+	default:
+		return
 	}
-	return "", path
+	cmd.Stdin = strings.NewReader(text)
+	cmd.Run()
 }
 
 func (m Model) renderDiffLine(dl types.DiffLine) string {
@@ -518,7 +610,7 @@ func (m Model) loadDiff(path string, staged bool) tea.Cmd {
 	return func() tea.Msg {
 		lines, err := git.GetFileDiff(repoPath, path, staged)
 		if err != nil {
-			return diffLoadedMsg{path: path, lines: nil}
+			return diffLoadedMsg{path: path, lines: nil, diffErr: err.Error()}
 		}
 		return diffLoadedMsg{path: path, lines: lines}
 	}

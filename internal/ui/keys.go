@@ -8,17 +8,19 @@ type keyMap struct {
 	ScrollUp   key.Binding
 	ScrollDown key.Binding
 	Toggle     key.Binding
-	All      key.Binding
-	Collapse key.Binding
-	Filter   key.Binding
-	Refresh  key.Binding
-	Quit     key.Binding
-	PageUp   key.Binding
-	PageDown key.Binding
-	HalfUp   key.Binding
-	HalfDown key.Binding
-	Top      key.Binding
-	Bottom   key.Binding
+	All        key.Binding
+	Collapse   key.Binding
+	Filter     key.Binding
+	Refresh    key.Binding
+	Quit       key.Binding
+	PageUp     key.Binding
+	PageDown   key.Binding
+	HalfUp     key.Binding
+	HalfDown   key.Binding
+	Top        key.Binding
+	Bottom     key.Binding
+	Yank       key.Binding
+	Help       key.Binding
 }
 
 var keys = keyMap{
@@ -69,5 +71,11 @@ var keys = keyMap{
 	),
 	Bottom: key.NewBinding(
 		key.WithKeys("G"),
+	),
+	Yank: key.NewBinding(
+		key.WithKeys("y"),
+	),
+	Help: key.NewBinding(
+		key.WithKeys("?"),
 	),
 }

@@ -62,5 +62,26 @@ var (
 			Foreground(lipgloss.Color("8")).
 			Faint(true)
 
+	helpStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("7"))
+
+	helpKeyStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#88C0D0")).
+			Bold(true)
+
+	helpDimStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("8"))
+
+	flashStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#A3BE8C")) // green flash for "copied"
+
+	errorStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#BF616A")).
+			Faint(true)
+
+	loadingStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("8")).
+			Faint(true)
+
 	diffIndent = "    "
 )

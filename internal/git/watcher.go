@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -20,10 +21,12 @@ var ignoreDirs = map[string]bool{
 }
 
 type Watcher struct {
-	fsWatcher *fsnotify.Watcher
-	repoPath  string
-	Events    chan struct{}
-	done      chan struct{}
+	fsWatcher    *fsnotify.Watcher
+	repoPath     string
+	Events       chan struct{}
+	done         chan struct{}
+	mu           sync.Mutex
+	debounceTimer *time.Timer
 }
 
 func NewWatcher(repoPath string) (*Watcher, error) {
@@ -47,6 +50,10 @@ func NewWatcher(repoPath string) (*Watcher, error) {
 		if !info.IsDir() {
 			return nil
 		}
+		// Skip symlinks to avoid infinite loops
+		if info.Mode()&os.ModeSymlink != 0 {
+			return filepath.SkipDir
+		}
 		base := filepath.Base(path)
 		if ignoreDirs[base] && path != repoPath {
 			return filepath.SkipDir
@@ -69,8 +76,6 @@ func NewWatcher(repoPath string) (*Watcher, error) {
 }
 
 func (w *Watcher) loop() {
-	var debounceTimer *time.Timer
-
 	for {
 		select {
 		case event, ok := <-w.fsWatcher.Events:
@@ -112,16 +117,17 @@ func (w *Watcher) loop() {
 			}
 
 			// Debounce: reset timer on each event
-			if debounceTimer != nil {
-				debounceTimer.Stop()
+			w.mu.Lock()
+			if w.debounceTimer != nil {
+				w.debounceTimer.Stop()
 			}
-			debounceTimer = time.AfterFunc(300*time.Millisecond, func() {
+			w.debounceTimer = time.AfterFunc(300*time.Millisecond, func() {
 				select {
 				case w.Events <- struct{}{}:
 				default:
-					// Channel already has a pending event
 				}
 			})
+			w.mu.Unlock()
 
 		case _, ok := <-w.fsWatcher.Errors:
 			if !ok {
@@ -135,6 +141,11 @@ func (w *Watcher) loop() {
 }
 
 func (w *Watcher) Close() {
+	w.mu.Lock()
+	if w.debounceTimer != nil {
+		w.debounceTimer.Stop()
+	}
+	w.mu.Unlock()
 	close(w.done)
 	w.fsWatcher.Close()
 }

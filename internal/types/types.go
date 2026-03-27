@@ -51,6 +51,7 @@ type FileChange struct {
 	Expanded   bool
 	DiffLines  []DiffLine
 	DiffLoaded bool
+	DiffError  string
 	Additions  int
 	Deletions  int
 }
