@@ -47,9 +47,11 @@ enter/l      toggle file diff
 a            expand all
 c            collapse all
 s            cycle filter: all → unstaged → staged
+y            copy file path to clipboard
 ctrl+d/u     half page scroll
 g/G          top / bottom
 r            force refresh
+?            help
 q            quit
 ```
 
@@ -59,7 +61,14 @@ q            quit
 git clone https://github.com/viktorfroberg/koll.git
 cd koll
 make build    # builds binary with version from git tags
-make install  # copies to /usr/local/bin
+make dev      # symlinks as koll-dev in PATH
+```
+
+`make dev` creates a `koll-dev` command that always points to your local build. Rebuild with `make build` and `koll-dev` updates instantly — no reinstall. This keeps the released `koll` and your dev build side by side.
+
+```bash
+koll-dev --split          # test your local build
+koll --split              # released version
 ```
 
 PRs welcome. Keep it simple — koll does one thing.
