@@ -9,17 +9,10 @@ Not a git client. No staging, no committing, no branching. Just diffs.
 ## Install
 
 ```bash
-# homebrew
-brew tap viktorfroberg/tap && brew install koll
-
-# go
-go install github.com/viktorfroberg/koll/cmd/koll@latest
-
-# binary
 curl -sSfL https://raw.githubusercontent.com/viktorfroberg/koll/main/install.sh | sh
 ```
 
-Update with `koll --update` or `brew upgrade koll`.
+Update with `koll --update`.
 
 ## Usage
 
