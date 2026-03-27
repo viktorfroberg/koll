@@ -17,17 +17,50 @@ import (
 
 var version = "dev"
 
+func printHelp() {
+	fmt.Print(`koll - real-time git diff viewer
+
+Usage:
+  koll [path]           watch a repo (default: current directory)
+  koll --split [path]   open in a split pane next to your editor
+  koll help             show this help
+  koll version          print version
+  koll update           update to latest release
+
+Flags:
+  --split     open in a split pane (auto-detects terminal)
+  --version   print version and exit
+  --update    update koll to the latest version
+
+Keybindings:
+  j/k          jump between files
+  ↑/↓          scroll line by line
+  enter/l      toggle file diff
+  a            expand all
+  c            collapse all
+  s            cycle filter: all → unstaged → staged
+  y            copy file path to clipboard
+  ?            show all keybindings
+  q            quit
+`)
+}
+
 func main() {
 	split := flag.Bool("split", false, "Open in a split pane (auto-detects terminal multiplexer)")
 	showVersion := flag.Bool("version", false, "Print version and exit")
 	update := flag.Bool("update", false, "Update koll to the latest version")
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "koll - real-time git diff viewer\n\n")
-		fmt.Fprintf(os.Stderr, "Usage: koll [flags] [path]\n\n")
-		fmt.Fprintf(os.Stderr, "Flags:\n")
-		flag.PrintDefaults()
-	}
+	flag.Usage = printHelp
 	flag.Parse()
+
+	// Handle "koll help", "koll version", "koll update" as subcommands
+	if arg := flag.Arg(0); arg == "help" || arg == "-h" {
+		printHelp()
+		return
+	} else if arg == "version" {
+		*showVersion = true
+	} else if arg == "update" {
+		*update = true
+	}
 
 	if *showVersion {
 		fmt.Printf("koll %s\n", version)
@@ -65,11 +98,14 @@ func main() {
 		return
 	}
 
-	// Validate it's a git repo
+	// Find git repo (walks up from path)
 	cmd := exec.Command("git", "-C", path, "rev-parse", "--show-toplevel")
 	out, err := cmd.Output()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %s is not a git repository\n", path)
+		fmt.Fprintf(os.Stderr, "Not a git repository: %s\n\n", path)
+		fmt.Fprintf(os.Stderr, "  koll <path>       watch a git repo\n")
+		fmt.Fprintf(os.Stderr, "  koll --split      open in a split pane\n")
+		fmt.Fprintf(os.Stderr, "  koll help         show all commands\n")
 		os.Exit(1)
 	}
 	repoPath := strings.TrimSpace(string(out))
