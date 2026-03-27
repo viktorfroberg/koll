@@ -31,12 +31,12 @@ koll --split          # open in a split pane (auto-detects terminal)
 
 `--split` supports cmux, tmux, zellij, wezterm, kitty, ghostty, and iTerm2.
 
-Works with worktrees — run separate instances for each:
+Point it at a worktree to watch changes there:
 
 ```bash
-koll ~/project-wt-auth
-koll ~/project-wt-refactor
+koll /path/to/worktree
 ```
+
 
 ## Keybindings
 
