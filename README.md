@@ -31,6 +31,12 @@ koll --split          # open in a split pane (auto-detects terminal)
 
 `--split` supports cmux, tmux, zellij, wezterm, kitty, ghostty, and iTerm2.
 
+From a Claude Code session:
+
+```
+! koll --split
+```
+
 Point it at a worktree to watch changes there:
 
 ```bash
