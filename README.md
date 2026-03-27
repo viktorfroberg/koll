@@ -2,6 +2,8 @@
 
 Real-time git diff viewer for your terminal.
 
+![koll demo](demo.gif)
+
 Watches your repo for changes, shows which files changed, and displays diffs inline — updating live. Designed to run in a split pane next to your editor or AI coding agent.
 
 Not a git client. No staging, no committing, no branching. Just diffs.
