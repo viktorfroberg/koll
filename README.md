@@ -1,28 +1,10 @@
 # koll
 
-Real-time git diff viewer for your terminal. Swedish for "check" — as in *hålla koll* (keep an eye on).
+Real-time git diff viewer for your terminal.
 
-You moved your dev workflow to the terminal. Claude Code, Codex, or whatever agent is doing the typing now. It's fast, it's great — but you miss one thing from your IDE: seeing what's actually changing.
+Watches your repo for changes, shows which files changed, and displays diffs inline — updating live. Designed to run in a split pane next to your editor or AI coding agent.
 
-Lazygit? Overkill. You don't need a full git client. You just want to *see the diff* — which files changed, what got added, what got deleted — updating live as your agent works.
-
-That's koll. One pane. One job. Keep an eye on things.
-
-```
-┌──────────────────────────────────────┐
-│  koll  ~/project                     │
-├──────────────────────────────────────┤
-│  M src/stores/booking.js             │
-│ >A tests/booking.spec.js            │
-│  │ +import { describe } from 'vi..  │
-│  │ +describe('Booking', () => {     │
-│  │ +  it('loads schedule', () => {  │
-│  │ -  // old implementation         │
-│  D src/old-booking.js                │
-├──────────────────────────────────────┤
-│  3 files · +12 -3   q:uit a:ll      │
-└──────────────────────────────────────┘
-```
+Not a git client. No staging, no committing, no branching. Just diffs.
 
 ## Install
 
@@ -37,60 +19,50 @@ go install github.com/viktorfroberg/koll/cmd/koll@latest
 curl -sSfL https://raw.githubusercontent.com/viktorfroberg/koll/main/install.sh | sh
 ```
 
-## Update
-
-```bash
-koll --update
-```
-
-Works regardless of how you installed it (curl, go install, or manual). Checks GitHub for the latest release and replaces the binary in place. Homebrew users can just `brew upgrade koll`.
+Update with `koll --update` or `brew upgrade koll`.
 
 ## Usage
 
 ```bash
 koll                  # watch current repo
 koll ~/project        # watch a specific repo
-koll --split          # open in a split pane next to your agent
+koll --split          # open in a split pane (auto-detects terminal)
 ```
 
-### With Claude Code
+`--split` supports cmux, tmux, zellij, wezterm, kitty, ghostty, and iTerm2.
 
-```
-! koll --split
-```
-
-That's it. A split pane opens to the right with your live diff view.
-
-### With worktrees
-
-Running multiple agents in parallel? Point each koll at its own worktree:
+Works with worktrees — run separate instances for each:
 
 ```bash
-koll ~/project-wt-auth      # pane 1
-koll ~/project-wt-refactor   # pane 2
+koll ~/project-wt-auth
+koll ~/project-wt-refactor
 ```
-
-### Split pane support
-
-`--split` auto-detects your terminal and opens koll in an adjacent pane:
-
-cmux, tmux, zellij, wezterm, kitty, ghostty, iTerm2
 
 ## Keybindings
 
 ```
-j/k  ↑/↓       navigate files
-enter  l        toggle diff
-a               expand all
-c               collapse all
-s               cycle: all → unstaged → staged
-r               force refresh
-q               quit
+j/k          jump between files
+↑/↓          scroll line by line
+enter/l      toggle file diff
+a            expand all
+c            collapse all
+s            cycle filter: all → unstaged → staged
+ctrl+d/u     half page scroll
+g/G          top / bottom
+r            force refresh
+q            quit
 ```
 
-## How it works
+## Contributing
 
-koll watches your repo for filesystem changes, debounces rapid writes (300ms), and re-runs `git diff`. Diffs are lazy-loaded — only fetched when you expand a file. The whole thing is a single 4MB Go binary with zero runtime dependencies.
+```bash
+git clone https://github.com/viktorfroberg/koll.git
+cd koll
+make build    # builds binary with version from git tags
+make install  # copies to /usr/local/bin
+```
+
+PRs welcome. Keep it simple — koll does one thing.
 
 ## License
 
